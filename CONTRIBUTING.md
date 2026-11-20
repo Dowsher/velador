@@ -99,6 +99,9 @@ Abre un reporte con:
 - El renglón de `registro.log` (opción 8 del menú). Quita tu nombre de usuario de las rutas.
 - Si es una variante nueva: su SHA-256 y las órdenes que lanza. No adjuntes el archivo.
 
+Si lo que encontraste es una forma de usar Velador para hacer daño, no lo publiques: sigue
+[`SECURITY.md`](SECURITY.md).
+
 ## Enviar un cambio
 
 Un cambio por solicitud, con sus pruebas, y una explicación del caso real que lo motiva.
