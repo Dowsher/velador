@@ -137,6 +137,14 @@ function Pausa-Final {
     try { [void](Read-Host 'Presiona Enter para cerrar') } catch {}
 }
 
+# Windows a veces entrega la misma carpeta con su nombre corto (PROGRA~1) y otras con el largo.
+# Para no contar dos veces el mismo lugar, las carpetas se pasan siempre a la forma larga.
+function Ruta-Larga([string]$Ruta) {
+    if (-not $Ruta -or $Ruta.IndexOf('~') -lt 0) { return $Ruta }
+    try { if (Test-Path -LiteralPath $Ruta) { return [IO.Path]::GetFullPath($Ruta) } } catch {}
+    return $Ruta
+}
+
 function Cargar-Nativo {
     if ('VeladorNativo' -as [type]) { return $true }
     $cs = @'
@@ -292,7 +300,7 @@ public static class VeladorNativo
 }
 
 function Listar-Archivos([string[]]$Raices, [string[]]$Extensiones, [int]$Profundidad) {
-    $validas = @($Raices | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique)
+    $validas = @($Raices | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object { Ruta-Larga $_ } | Select-Object -Unique)
     $final = @()
     foreach ($r in $validas) {
         $dentro = $false
@@ -543,6 +551,7 @@ function Revisar-Carpetas {
     # 1) Carpetas donde Windows solo guarda datos: ahí no debe haber nada ejecutable
     $raizWin = $script:RaizCache
     if (-not $raizWin -and -not $script:Aislado) { $raizWin = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows' }
+    $raizWin = Ruta-Larga $raizWin
     $perfil = $null; try { $perfil = (Get-Item -LiteralPath $env:USERPROFILE -Force).CreationTime } catch {}
     if ($raizWin) {
         foreach ($n in @('Caches', 'WebCache', 'INetCache', 'History', 'INetCookies')) {
@@ -602,6 +611,7 @@ function Revisar-Carpetas {
     if (-not $script:Aislado) {
         foreach ($base in @($env:TEMP, (Join-Path $env:USERPROFILE 'Downloads'))) {
             if (-not $base -or -not (Test-Path -LiteralPath $base)) { continue }
+            $base = Ruta-Larga $base
             foreach ($d in @(Get-ChildItem -LiteralPath $base -Directory -Force -Filter 'tmp-*' -ErrorAction SilentlyContinue)) {
                 if ($d.Name -notmatch '^tmp-\d{5}-[A-Za-z0-9]{12}$') { continue }
                 Nuevo-Hallazgo @{ Nivel = 'ALTO'; Tipo = 'carpeta'; Titulo = 'Carpeta temporal de un instalador falso'; Donde = $d.FullName; Evidencia = @('el nombre sigue el patrón que usa este tipo de cargador al desempacarse'); Carpeta = $d.FullName; QueHacer = 'Mándala a cuarentena con la opción Limpiar.' }
@@ -659,7 +669,7 @@ function Revisar-InstaladoresFalsos {
     if (-not $script:Aislado) { $raices += @((Join-Path $env:USERPROFILE 'Downloads'), [Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('MyDocuments'), $env:TEMP) }
     $raices += @($script:CarpetasExtra)
     $vistos = @{}
-    foreach ($r in @($raices | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique)) {
+    foreach ($r in @($raices | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object { Ruta-Larga $_ } | Select-Object -Unique)) {
         $cands = @()
         if (Test-Path -LiteralPath (Join-Path $r 'renpy')) { $cands += $r }
         try { $cands += @(Get-ChildItem -LiteralPath $r -Directory -Recurse -Depth 3 -Filter 'renpy' -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.Parent.FullName }) } catch {}

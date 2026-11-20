@@ -137,7 +137,7 @@ Write-Host 'Revisión completa, cuarentena y restauración'
 $h = @(Ejecutar-Revision -Silencioso)
 $graves = @($h | Where-Object { $_.Nivel -eq 'ALTO' })
 Probar 'la revisión encuentra exactamente los 2 casos graves' { $graves.Count -eq 2 }
-$hc = $graves | Where-Object { $_.Donde -eq $caches } | Select-Object -First 1
+$hc = $graves | Where-Object { $_.Donde -eq (Ruta-Larga $caches) } | Select-Object -First 1
 Probar 'el caso de la caché incluye los 5 archivos del cargador' { $hc -and @($hc.Archivos).Count -eq 5 }
 Probar 'nota que los archivos están ocultos y con fecha falsa' { $e = (@($hc.Evidencia) -join ' | '); $e -match 'ocultos' -and $e -match 'fecha de creación falsa' }
 Probar 'no marca el proyecto limpio, el juego real ni los datos normales' { -not (@($h | ForEach-Object { $_.Donde + ' ' + (@($_.Archivos) -join ' ') }) -match 'limpio|juego-real|WebCache|cversions') }
