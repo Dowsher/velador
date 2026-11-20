@@ -1,5 +1,5 @@
 ﻿<#
-  VELADOR 1.0
+  VELADOR 1.1
   Guardia contra instaladores falsos y programas que se cargan a escondidas en Windows.
 
   Doble clic en Velador.cmd abre el menú. También se puede llamar directo:
@@ -31,7 +31,7 @@ param(
 Set-StrictMode -Off
 $ErrorActionPreference = 'Continue'
 
-$script:Version = '1.0'
+$script:Version = '1.1'
 $script:Yo = $MyInvocation.MyCommand.Path
 if (-not $Datos) { $Datos = Join-Path $env:LOCALAPPDATA 'Velador' }
 if (-not (Test-Path -LiteralPath $Datos)) { New-Item -ItemType Directory -Force -Path $Datos | Out-Null }
@@ -76,7 +76,7 @@ $script:ReglasASR = @(
     @{ Id = '56a863a9-875e-4185-98a7-b882c64b5ce5'; Accion = 1; Nombre = 'Bloquear controladores firmados vulnerables' },
     @{ Id = 'c1db55ab-c21a-4637-bb3f-a12568109d35'; Accion = 1; Nombre = 'Usar protección avanzada contra ransomware' },
     @{ Id = 'be9ba2d9-53ea-4cdc-84e5-9b1eeee46550'; Accion = 1; Nombre = 'Bloquear ejecutables que llegan por correo' },
-    @{ Id = 'c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb'; Accion = 1; Nombre = 'Bloquear copias o imitaciones de herramientas de Windows' },
+    @{ Id = 'c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb'; Accion = 2; Nombre = 'Copias o imitaciones de herramientas de Windows (solo registrar: en bloqueo detiene a Git para Windows)' },
     @{ Id = 'd4f940ab-401b-4efc-aadc-ad5f3c50688a'; Accion = 1; Nombre = 'Bloquear que Office abra otros programas' },
     @{ Id = '3b576869-a4ec-4529-8536-b80a7769e899'; Accion = 1; Nombre = 'Bloquear que Office cree ejecutables' },
     @{ Id = '75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84'; Accion = 1; Nombre = 'Bloquear que Office inyecte código en otros procesos' },
@@ -1403,6 +1403,22 @@ function Quitar-BlindajeUsuario([string]$RaizReg = 'HKCU:\Software\Classes', [st
     }
 }
 
+# Decide en qué modo queda cada regla del antivirus (0 = apagada, 1 = bloquear, 2 = solo registrar).
+# $Actuales: lo que tiene hoy la computadora (identificador -> modo).
+# $Previas: las reglas que la persona ya tenía antes de usar Velador. Esas nunca se relajan.
+# Lo que Velador puso en bloqueo y ahora quiere en solo registrar sí se relaja al volver a blindar.
+function Mezclar-ReglasASR($Actuales, [string[]]$Previas) {
+    $mapa = [ordered]@{}
+    if ($Actuales) { foreach ($k in @($Actuales.Keys)) { $mapa[([string]$k).ToLower()] = [int]$Actuales[$k] } }
+    $deAntes = @($Previas | Where-Object { $_ } | ForEach-Object { ([string]$_).ToLower() })
+    foreach ($r in $script:ReglasASR) {
+        $k = $r.Id.ToLower()
+        if (-not $mapa.Contains($k) -or [int]$mapa[$k] -eq 0 -or ([int]$mapa[$k] -eq 2 -and $r.Accion -eq 1)) { $mapa[$k] = [int]$r.Accion }
+        elseif ([int]$mapa[$k] -eq 1 -and $r.Accion -eq 2 -and ($deAntes -notcontains $k)) { $mapa[$k] = 2 }
+    }
+    return $mapa
+}
+
 function Aplicar-BlindajeSistema {
     if ($script:Simular) { return }
     if (-not (Es-Admin)) { Write-Host '   Hace falta permiso de administrador para el cortafuegos y el antivirus.' -ForegroundColor Yellow; return }
@@ -1446,13 +1462,12 @@ function Aplicar-BlindajeSistema {
         if ([int]$pref.MAPSReporting -eq 0) { try { Set-MpPreference -MAPSReporting 2 -ErrorAction Stop; Write-Host '   Protección en la nube: activada.' -ForegroundColor Green } catch {} }
         try { Set-MpPreference -CloudBlockLevel 2 -CloudExtendedTimeout 50 -ErrorAction Stop; Write-Host '   Protección en la nube: nivel alto.' -ForegroundColor Green } catch { Write-Host ("   Nivel de nube: {0}" -f $_.Exception.Message) -ForegroundColor Yellow }
         if ($pref.DisableRealtimeMonitoring) { try { Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction Stop; Write-Host '   Protección en tiempo real: encendida.' -ForegroundColor Green } catch {} }
-        $mapa = [ordered]@{}
+        $actuales = [ordered]@{}
         $ids = @($pref.AttackSurfaceReductionRules_Ids); $acts = @($pref.AttackSurfaceReductionRules_Actions)
-        for ($i = 0; $i -lt $ids.Count; $i++) { if ($ids[$i]) { $mapa[([string]$ids[$i]).ToLower()] = [int]$acts[$i] } }
-        foreach ($r in $script:ReglasASR) {
-            $k = $r.Id.ToLower()
-            if (-not $mapa.Contains($k) -or [int]$mapa[$k] -eq 0 -or ([int]$mapa[$k] -eq 2 -and $r.Accion -eq 1)) { $mapa[$k] = [int]$r.Accion }
-        }
+        for ($i = 0; $i -lt $ids.Count; $i++) { if ($ids[$i]) { $actuales[([string]$ids[$i]).ToLower()] = [int]$acts[$i] } }
+        $previas = @()
+        try { $ant = Get-Content -LiteralPath $archEstado -Raw -Encoding UTF8 | ConvertFrom-Json; $previas = @($ant.Defender.AsrIds | Where-Object { $_ } | ForEach-Object { [string]$_ }) } catch {}
+        $mapa = Mezclar-ReglasASR $actuales $previas
         try {
             Set-MpPreference -AttackSurfaceReductionRules_Ids ([string[]]@($mapa.Keys)) -AttackSurfaceReductionRules_Actions ([int[]]@($mapa.Values)) -ErrorAction Stop
             Write-Host ("   Reglas contra técnicas de ataque: {0} activas." -f $mapa.Count) -ForegroundColor Green

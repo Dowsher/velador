@@ -13,7 +13,7 @@ jobs:
   pruebas:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Correr las pruebas
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File pruebas\probar.ps1

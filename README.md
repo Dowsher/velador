@@ -12,15 +12,19 @@ que cualquiera puede leer antes de usarlo.
 
 ## Estado
 
-Versión 1.0, recién publicada. Lo que está probado y lo que no:
+Versión 1.1. Lo que está probado y lo que no:
 
 - **Revisar y el vigilante** se han probado en uso real en una PC con Windows 11. La revisión encontró
   los restos del ataque que dio origen al proyecto y el vigilante detuvo una imitación inofensiva en
   menos de un segundo.
-- **Blindar todavía no se ha aplicado en ninguna computadora real.** Sus cambios se han comprobado
-  por partes y en simulación, y deshacerlo solo se ha probado en la parte que no pide administrador.
-  Antes de usarlo mira qué cambiaría con `Velador.cmd blindar -Simular`, y cuenta cómo te fue.
+- **Blindar** se ha aplicado en una sola PC con Windows 11. Quedaron puestas las reglas del
+  cortafuegos, los ajustes del antivirus y el cambio de los archivos de órdenes. Esa primera prueba
+  destapó un problema, corregido en la versión 1.1: una de las reglas del antivirus bloqueaba las
+  herramientas de Git para Windows (`find`, `sort`, `curl`, `tar`). Ahora esa regla solo registra.
+- **Quitar el blindaje** (opción 7) todavía no se ha probado en uso real, solo por partes.
 - En Windows 10 no se ha probado.
+
+Antes de blindar puedes ver exactamente qué cambiaría con `Velador.cmd blindar -Simular`.
 
 ## Cómo empezar
 
@@ -54,7 +58,7 @@ No instala nada. Usa el PowerShell que ya trae Windows 10 y 11.
 ## Qué hace el blindaje
 
 1. **Cortafuegos:** les quita la salida a internet a los programas de Windows que el malware usa de disfraz (MSBuild, RegAsm, InstallUtil, mshta, wscript, certutil y otros). Siguen funcionando; solo no pueden conectarse. No toca PowerShell, `cmd`, `rundll32` ni los navegadores.
-2. **Antivirus de Windows:** activa el bloqueo de programas no deseados, sube la protección en la nube a nivel alto y enciende 16 reglas contra técnicas de ataque (13 bloquean, 3 solo registran).
+2. **Antivirus de Windows:** activa el bloqueo de programas no deseados, sube la protección en la nube a nivel alto y enciende 16 reglas contra técnicas de ataque (12 bloquean, 4 solo registran).
 3. **Archivos de órdenes:** un doble clic en `.js`, `.vbs` o `.hta` los abre en el Bloc de notas en vez de ejecutarlos.
 
 Antes de cambiar nada guarda cómo estaba todo, y **Quitar el blindaje** (opción 7) lo regresa. Para ver
@@ -89,6 +93,17 @@ Opcional: crear `%LOCALAPPDATA%\Velador\config.json`.
 
 Los cambios se toman la próxima vez que se enciende el vigilante.
 
+## Si el blindaje bloquea algo tuyo
+
+Windows muestra el aviso "acción bloqueada" y lo anota en **Seguridad de Windows > Historial de
+protección**, con el nombre de la regla y del programa.
+
+- **Si blindaste con la versión 1.0 y Git Bash dejó de abrir `find`, `sort`, `curl` o `tar`** (dice
+  `Permission denied`): baja la versión actual y elige **Blindar** otra vez. La regla que lo causaba
+  pasa a solo registrar.
+- **Para cualquier otro bloqueo:** quita el blindaje con la opción 7 y repórtalo, diciendo qué regla y
+  qué programa aparecen en el historial.
+
 ## Cómo quitarlo
 
 1. Abre `Velador.cmd`.
@@ -110,7 +125,7 @@ No manda nada a internet: Velador no se conecta a ningún servidor.
 powershell -NoProfile -ExecutionPolicy Bypass -File pruebas\probar.ps1
 ```
 
-Corre 62 pruebas en una carpeta temporal con casos inofensivos. No toca la computadora ni pide administrador.
+Corre 65 pruebas en una carpeta temporal con casos inofensivos. No toca la computadora ni pide administrador.
 
 Si quieres revisar el código o proponer un cambio, la guía está en [`CONTRIBUTING.md`](CONTRIBUTING.md).
 

@@ -15,7 +15,7 @@ está armado, cómo probarlo y qué se pide en un cambio.
 powershell -NoProfile -ExecutionPolicy Bypass -File pruebas\probar.ps1
 ```
 
-Corre 62 pruebas en unos segundos, sin permiso de administrador. Trabaja en una carpeta temporal
+Corre 65 pruebas en unos segundos, sin permiso de administrador. Trabaja en una carpeta temporal
 con casos inofensivos (texto inerte que imita la forma del ataque) y la borra al terminar. Con
 `-Conservar` la deja para inspeccionarla; bórrala después, porque una revisión real marcaría esos
 casos como hallazgos.

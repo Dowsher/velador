@@ -169,6 +169,12 @@ Probar 'incluye el MSBuild que usó el ataque' { $progs -contains (Join-Path $en
 Probar 'no le quita internet a PowerShell, cmd, rundll32 ni al navegador' { @($progs | Where-Object { $_ -match '(?i)\\(powershell|pwsh|cmd|rundll32|explorer|msedge|chrome)\.exe$' }).Count -eq 0 }
 Probar 'cada regla del cortafuegos tiene un nombre distinto' { @($progs | ForEach-Object { Nombre-Regla $_ } | Select-Object -Unique).Count -eq $progs.Count }
 Probar 'las reglas del antivirus tienen identificador válido y único' { @($script:ReglasASR | Where-Object { $_.Id -notmatch '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$' }).Count -eq 0 -and @($script:ReglasASR | ForEach-Object { $_.Id } | Select-Object -Unique).Count -eq $script:ReglasASR.Count }
+$copias = 'c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb'; $ofuscados = '5beb7efe-fd9a-4556-801d-275e5ffc04cc'
+Probar 'la regla de copias de herramientas de Windows solo registra (en bloqueo detiene a Git para Windows)' { @($script:ReglasASR | Where-Object { $_.Id -eq $copias -and $_.Accion -eq 2 }).Count -eq 1 }
+$m = Mezclar-ReglasASR ([ordered]@{ $copias = 1; $ofuscados = 2 }) @()
+Probar 'al volver a blindar relaja lo que Velador puso de más y endurece lo que falta' { $m[$copias] -eq 2 -and $m[$ofuscados] -eq 1 -and $m.Count -eq $script:ReglasASR.Count }
+$m = Mezclar-ReglasASR ([ordered]@{ $copias = 1 }) @($copias.ToUpper())
+Probar 'nunca relaja una regla que la persona ya tenía en bloqueo' { $m[$copias] -eq 1 }
 Probar 'Windows acepta los parámetros que usa el blindaje' {
     $mp = (Get-Command Set-MpPreference).Parameters; $fw = (Get-Command New-NetFirewallRule).Parameters
     @('PUAProtection', 'CloudBlockLevel', 'CloudExtendedTimeout', 'MAPSReporting', 'AttackSurfaceReductionRules_Ids', 'AttackSurfaceReductionRules_Actions', 'DisableRealtimeMonitoring' | Where-Object { -not $mp.ContainsKey($_) }).Count -eq 0 -and @('DisplayName', 'Group', 'Description', 'Direction', 'Action', 'Program', 'Profile' | Where-Object { -not $fw.ContainsKey($_) }).Count -eq 0
