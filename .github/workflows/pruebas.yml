@@ -1,0 +1,19 @@
+name: Pruebas
+
+# Corre las pruebas en cada cambio, con el PowerShell 5.1 que trae Windows:
+# el mismo con el que Velador funciona en la computadora de cualquier persona.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Correr las pruebas
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File pruebas\probar.ps1
